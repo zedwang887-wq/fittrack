@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2E7D32">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <title>FitTrack - 健身饮食助手</title>
+  <style>
+/* ========== 全局重置 ========== */
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --primary: #2E7D32; --primary-light: #4CAF50; --primary-dark: #1B5E20;
+  --primary-bg: #E8F5E9; --primary-bg2: #F1F8E9;
+  --bg: #f5f5f5; --card-bg: #ffffff;
+  --text: #333333; --text-secondary: #666666; --text-light: #999999;
+  --border: #e0e0e0; --radius: 12px; --radius-sm: 8px; --danger: #ef5350; --warning: #FF9800;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 80px;
+}
+/* 头部 */
+.header {
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+  padding: 16px 20px; color: white; position: sticky; top: 0; z-index: 100;
+}
+.header-title { font-size: 20px; font-weight: 700; }
+.date-display { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+.stats-row { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
+.stat-item { display: flex; align-items: baseline; gap: 4px; }
+.stat-value { font-size: 26px; font-weight: 800; }
+.stat-label { font-size: 12px; opacity: 0.85; }
+/* Tab 导航 */
+.tab-nav { display: flex; background: white; border-bottom: 1px solid var(--border); position: sticky; top: 80px; z-index: 99; }
+.tab-btn { flex:1; padding:12px 6px; border:none; background:transparent; color:var(--text-secondary); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; position:relative; }
+.tab-btn:hover { color:var(--primary); background:var(--primary-bg2); }
+.tab-btn.active { color:var(--primary); }
+.tab-btn.active::after { content:''; position:absolute; bottom:0; left:15%; width:70%; height:3px; background:var(--primary); border-radius:3px 3px 0 0; }
+.tab-content { display:none; padding:16px; }
+.tab-content.active { display:block; }
+/* 空状态 */
+.empty-state { text-align:center; padding:60px 20px; }
+.empty-icon { font-size:48px; margin-bottom:12px; }
+.empty-text { font-size:16px; color:var(--text-secondary); margin-bottom:6px; }
+.empty-hint { font-size:13px; color:var(--text-light); }
+/* 表单 */
+.form-section { display:flex; flex-direction:column; gap:16px; }
+.input-group { display:flex; flex-direction:column; gap:8px; }
+.input-label { font-size:14px; font-weight:600; color:var(--text); }
+/* 餐别选择 */
+.meal-type-selector { display:flex; gap:8px; flex-wrap:wrap; }
+.meal-btn { flex:1; min-width:60px; padding:10px 8px; border:2px solid var(--border); background:white; border-radius:var(--radius-sm); font-size:13px; cursor:pointer; transition:all 0.2s; font-weight:500; }
+.meal-btn:hover { border-color:var(--primary-light); background:var(--primary-bg2); }
+.meal-btn.active { border-color:var(--primary); background:var(--primary-bg); color:var(--primary-dark); }
+/* 搜索框 */
+.search-box input { width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:14px; outline:none; background:white; }
+.search-box input:focus { border-color:var(--primary); }
+/* 食物列表 */
+.food-list { max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); background:white; }
+.food-item { padding:8px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; border-bottom:1px solid #f0f0f0; transition:background 0.15s; }
+.food-item:last-child { border-bottom:none; }
+.food-item:hover { background:var(--primary-bg2); }
+.food-item.active { background:var(--primary-bg); }
+.food-item-checkbox { width:22px; height:22px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:white; flex-shrink:0; transition:all 0.2s; }
+.food-item.active .food-item-checkbox { background:var(--primary); border-color:var(--primary); }
+.food-item-content { flex:1; min-width:0; }
+.food-item-name { font-size:14px; font-weight:500; }
+.food-item-info { font-size:11px; color:var(--text-secondary); }
+/* 已选食物面板 */
+.selected-foods-container { background:white; border:2px solid var(--primary-light); border-radius:var(--radius); padding:14px; }
+.selected-foods-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.selected-food-item { display:flex; align-items:center; gap:8px; background:var(--primary-bg2); border-radius:var(--radius-sm); padding:8px 10px; }
+.selected-food-info { flex:1; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.selected-food-name { font-size:13px; font-weight:600; color:var(--text); min-width:60px; }
+.selected-food-amount { display:flex; align-items:center; gap:3px; }
+.selected-food-amount input { width:55px; padding:4px 6px; border:1.5px solid var(--border); border-radius:4px; text-align:center; font-size:13px; font-weight:600; outline:none; }
+.selected-food-amount input:focus { border-color:var(--primary); }
+.selected-food-amount .unit { font-size:11px; color:var(--text-light); }
+.selected-food-dec, .selected-food-inc { width:24px; height:24px; border:1.5px solid var(--border); background:white; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text); font-weight:700; }
+.selected-food-dec:hover, .selected-food-inc:hover { border-color:var(--primary); background:var(--primary-bg); color:var(--primary); }
+.selected-food-nutri { font-size:11px; color:var(--text-secondary); white-space:nowrap; }
+.selected-food-remove { background:none; border:none; color:var(--text-light); cursor:pointer; font-size:14px; padding:2px 4px; border-radius:4px; }
+.selected-food-remove:hover { color:var(--danger); background:#ffebee; }
+.selected-food-total { display:flex; justify-content:space-between; align-items:center; padding:8px 4px 0; margin-top:4px; border-top:1px solid var(--border); font-size:13px; font-weight:600; color:var(--primary-dark); }
+/* 数量控制 */
+.amount-control { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.amount-control input { width:80px; padding:8px 10px; border:2px solid var(--border); border-radius:var(--radius-sm); text-align:center; font-size:16px; font-weight:700; outline:none; }
+.amount-control input:focus { border-color:var(--primary); }
+.amount-btn { width:36px; height:36px; border:2px solid var(--border); background:white; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text); font-weight:700; }
+.amount-btn:hover { border-color:var(--primary); background:var(--primary-bg); color:var(--primary); }
+.unit { font-size:13px; color:var(--text-secondary); font-weight:500; margin-left:2px; }
+.detail-label { font-size:13px; color:var(--text-secondary); min-width:36px; }
+/* 预览卡片 */
+.preview-card { background:var(--primary-bg); border:2px solid var(--primary-light); border-radius:var(--radius); padding:14px; }
+.preview-name { font-size:16px; font-weight:700; color:var(--primary-dark); margin-bottom:6px; }
+.preview-items { font-size:13px; color:var(--text-secondary); margin-bottom:8px; line-height:1.8; }
+.preview-item { padding-left:8px; border-left:2px solid var(--primary-light); margin-bottom:2px; }
+.preview-nutrition { display:flex; gap:20px; font-size:14px; color:var(--text-secondary); font-weight:600; padding-top:6px; border-top:1px dashed var(--primary-light); }
+/* 按钮 */
+.btn { padding:12px 20px; border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
+.btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-light)); color:white; }
+.btn-primary:hover { opacity:0.9; }
+.btn-outline { background:white; color:var(--primary); border:2px solid var(--primary); }
+.btn-outline:hover { background:var(--primary-bg); }
+/* 时间线 */
+.timeline-day { margin-bottom:16px; }
+.timeline-day-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.timeline-day-date { font-size:15px; font-weight:700; color:var(--primary-dark); }
+.timeline-day-stats { font-size:12px; color:var(--text-secondary); background:var(--primary-bg); padding:3px 10px; border-radius:20px; }
+.timeline-meal-group { background:white; border-radius:var(--radius); margin-bottom:10px; padding:10px 14px; padding-left:18px; }
+.timeline-meal-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-weight:700; font-size:14px; color:var(--primary-dark); }
+.timeline-meal-time { font-size:11px; color:var(--text-light); font-weight:400; }
+.timeline-meal-total { margin-left:auto; font-size:12px; color:var(--text-secondary); background:var(--primary-bg); padding:2px 10px; border-radius:10px; }
+/* Toast */
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--primary-dark); color:white; padding:12px 24px; border-radius:20px; font-size:14px; font-weight:500; opacity:0; transition:all 0.3s; z-index:300; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+/* 弹窗 */
+.modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:white; border-radius:var(--radius); width:90%; max-width:380px; max-height:80vh; overflow-y:auto; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); font-weight:700; font-size:16px; }
+.modal-close { background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-light); padding:4px; border-radius:4px; }
+.modal-close:hover { color:var(--danger); background:#ffebee; }
+.modal-body { padding:20px; display:flex; flex-direction:column; gap:16px; }
+.modal-body input, .modal-body select { width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:14px; outline:none; }
+.modal-body input:focus, .modal-body select:focus { border-color:var(--primary); }
+/* 响应式 */
+@media (max-width:400px) { .meal-btn { flex:1 0 40%; } .selected-food-info { flex-direction:column; align-items:flex-start; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">🌿 FitTrack</div>
+    <div class="date-display" id="dateDisplay">加载中...</div>
+    <div class="stats-row">
+      <div class="stat-item"><span style="font-size:20px">🔥</span><span class="stat-value" id="totalCalories">0</span><span class="stat-label">千卡</span></div>
+      <div class="stat-item"><span style="font-size:20px">💪</span><span class="stat-value" id="totalProtein">0</span><span class="stat-label">g蛋白质</span></div>
+    </div>
+  </div>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="timeline">📋 时间线</button>
+    <button class="tab-btn" data-tab="addFood">🍽️ 记饮食</button>
+    <button class="tab-btn" data-tab="addExercise">💪 记健身</button>
+  </nav>
+
+  <!-- 时间线 -->
+  <div class="tab-content active" id="tab-timeline"><div id="timeline"><div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有记录</div><div class="empty-hint">点击上面的标签开始记录吧</div></div></div></div>
+
+  <!-- 记饮食 -->
+  <div class="tab-content" id="tab-addFood">
+    <div class="form-section">
+      <div class="input-group">
+        <div class="input-label">餐别</div>
+        <div class="meal-type-selector">
+          <button class="meal-btn active" data-meal="早餐">🌅 早餐</button>
+          <button class="meal-btn" data-meal="午餐">☀️ 午餐</button>
+          <button class="meal-btn" data-meal="晚餐">🌙 晚餐</button>
+          <button class="meal-btn" data-meal="加餐">🍪 加餐</button>
+        </div>
+      </div>
+      <div class="input-group">
+        <div class="input-label">选择食物（可多选）</div>
+        <div class="search-box"><input type="text" id="foodSearch" placeholder="搜索食物..." autocomplete="off"></div>
+        <div class="food-list" id="foodList"></div>
+        <button class="btn btn-outline" id="showCustomFoodBtn">➕ 自定义食物</button>
+      </div>
+      <div class="input-group">
+        <div class="input-label">默认每份克数</div>
+        <div class="amount-control">
+          <button class="amount-btn" id="decGrams">−</button>
+          <input type="number" id="foodGrams" value="100" min="10" max="2000" step="10">
+          <button class="amount-btn" id="incGrams">+</button><span class="unit">g</span>
+        </div>
+      </div>
+      <div class="selected-foods-container" id="selectedFoodsContainer" style="display:none;">
+        <div class="input-label">已选食物（<span id="selectedCount">0</span>项）</div>
+        <div class="selected-foods-list"></div>
+      </div>
+      <div class="preview-card" id="foodPreview" style="display:none;"></div>
+      <button class="btn btn-primary" id="addFoodBtn">✅ 批量添加记录</button>
+    </div>
+  </div>
+
+  <!-- 记健身 -->
+  <div class="tab-content" id="tab-addExercise">
+    <div class="form-section">
+      <div class="input-group">
+        <div class="input-label">选择健身项目</div>
+        <div class="search-box"><input type="text" id="exerciseSearch" placeholder="搜索健身项目..." autocomplete="off"></div>
+        <div id="exerciseCategories"></div>
+        <button class="btn btn-outline" id="showCustomExerciseBtn">➕ 自定义项目</button>
+      </div>
+      <div id="exerciseDetailGroup" style="display:none;">
+        <div class="input-label" id="selectedExerciseName">已选择：</div>
+        <div class="amount-control"><span class="detail-label">组数：</span><button class="amount-btn" id="decSets">−</button><input type="number" id="exerciseSets" value="4" min="1" max="50"><button class="amount-btn" id="incSets">+</button><span class="unit">组</span></div>
+        <div class="amount-control"><span class="detail-label">次数：</span><button class="amount-btn" id="decReps">−</button><input type="number" id="exerciseReps" value="12" min="1" max="200"><button class="amount-btn" id="incReps">+</button><span class="unit">次</span></div>
+        <div class="amount-control"><span class="detail-label">时长：</span><button class="amount-btn" id="decDuration">−</button><input type="number" id="exerciseDuration" value="0" min="0" max="999"><button class="amount-btn" id="incDuration">+</button><span class="unit">分钟</span></div>
+      </div>
+      <button class="btn btn-primary" id="addExerciseBtn">✅ 添加记录</button>
+    </div>
+  </div>
+
+  <!-- 自定义食物弹窗 -->
+  <div class="modal-overlay" id="customFoodModal">
+    <div class="modal">
+      <div class="modal-header"><span>自定义食物</span><button class="modal-close" id="closeCustomFoodModal">✕</button></div>
+      <div class="modal-body">
+        <input type="text" id="customFoodName" placeholder="食物名称"><input type="number" id="customFoodCalories" placeholder="每100克热量（千卡）"><input type="number" id="customFoodProtein" placeholder="每100克蛋白质（克）">
+        <button class="btn btn-primary" id="saveCustomFood">保存食物</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义健身弹窗 -->
+  <div class="modal-overlay" id="customExerciseModal">
+    <div class="modal">
+      <div class="modal-header"><span>自定义健身项目</span><button class="modal-close" id="closeCustomExerciseModal">✕</button></div>
+      <div class="modal-body">
+        <input type="text" id="customExerciseName" placeholder="项目名称">
+        <select id="customExerciseCategory"><option value="胸部">🏋️ 胸部</option><option value="背部">🏋️ 背部</option><option value="腿部">🏋️ 腿部</option><option value="肩部">🏋️ 肩部</option><option value="手臂">🏋️ 手臂</option><option value="腹部">🏋️ 腹部</option><option value="有氧">🏃 有氧</option><option value="其他">📌 其他</option></select>
+        <button class="btn btn-primary" id="saveCustomExercise">保存项目</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+// ========== 食物库 ==========
+const DEFAULT_FOODS = [
+  {name:'鸡胸肉',cal:165,pro:31},{name:'鸡腿肉',cal:181,pro:20},{name:'鸡翅',cal:222,pro:18},
+  {name:'鸡胗',cal:118,pro:20},{name:'牛肉（瘦）',cal:250,pro:26},{name:'牛腩',cal:332,pro:21},
+  {name:'牛排',cal:271,pro:25},{name:'猪肉（瘦）',cal:242,pro:20},{name:'猪里脊',cal:155,pro:22},
+  {name:'羊肉',cal:294,pro:24},{name:'三文鱼',cal:208,pro:20},{name:'金枪鱼',cal:130,pro:28},
+  {name:'鳕鱼',cal:82,pro:18},{name:'虾仁',cal:99,pro:24},{name:'鸡蛋',cal:144,pro:13.3},
+  {name:'鸡蛋清',cal:48,pro:11},{name:'牛奶',cal:66,pro:3.2},{name:'酸奶（无糖）',cal:61,pro:3.5},
+  {name:'希腊酸奶',cal:97,pro:9},{name:'奶酪',cal:328,pro:25},{name:'豆腐',cal:81,pro:8},
+  {name:'豆浆',cal:31,pro:2.9},{name:'毛豆',cal:131,pro:13},{name:'西兰花',cal:34,pro:2.8},
+  {name:'菠菜',cal:23,pro:2.9},{name:'生菜',cal:15,pro:1.4},{name:'番茄',cal:18,pro:0.9},
+  {name:'黄瓜',cal:15,pro:0.7},{name:'胡萝卜',cal:41,pro:0.9},{name:'洋葱',cal:40,pro:1.1},
+  {name:'紫甘蓝',cal:31,pro:1.4},{name:'芹菜',cal:14,pro:0.7},{name:'芦笋',cal:20,pro:2.2},
+  {name:'红薯',cal:86,pro:1.6},{name:'土豆',cal:81,pro:2},{name:'紫薯',cal:82,pro:1.9},
+  {name:'山药',cal:57,pro:1.9},{name:'玉米',cal:112,pro:4},{name:'燕麦',cal:367,pro:13.5},
+  {name:'糙米',cal:111,pro:2.6},{name:'藜麦',cal:120,pro:4.4},{name:'荞麦',cal:337,pro:13},
+  {name:'全麦面包',cal:246,pro:8.5},{name:'意面',cal:350,pro:12},{name:'米饭',cal:116,pro:2.6},
+  {name:'馒头',cal:233,pro:7.8},{name:'苹果',cal:53,pro:0.2},{name:'香蕉',cal:93,pro:1.1},
+  {name:'橙子',cal:48,pro:0.8},{name:'蓝莓',cal:57,pro:0.7},{name:'草莓',cal:32,pro:0.7},
+  {name:'葡萄',cal:69,pro:0.7},{name:'猕猴桃',cal:61,pro:1.1},{name:'牛油果',cal:160,pro:2},
+  {name:'榴莲',cal:147,pro:1.5},{name:'芒果',cal:60,pro:0.8},{name:'火龙果',cal:55,pro:1.1},
+  {name:'西瓜',cal:30,pro:0.6},{name:'哈密瓜',cal:34,pro:0.5},{name:'木瓜',cal:39,pro:0.6},
+  {name:'坚果混合',cal:553,pro:15},{name:'杏仁',cal:579,pro:21},{name:'核桃',cal:654,pro:15},
+  {name:'花生',cal:563,pro:26},{name:'腰果',cal:553,pro:18},{name:'奇亚籽',cal:486,pro:17},
+  {name:'橄榄油',cal:884,pro:0},{name:'蜂蜜',cal:304,pro:0.3},{name:'蛋白粉',cal:400,pro:80},
+  {name:'糙米饭团',cal:135,pro:3}
+];
+
+// ========== 健身项目 ==========
+const DEFAULT_EXERCISES = {
+  '胸部':['杠铃卧推','哑铃卧推','上斜卧推','下斜卧推','哑铃飞鸟','绳索夹胸','俯卧撑','宽距俯卧撑','钻石俯卧撑'],
+  '背部':['引体向上','杠铃划船','哑铃划船','坐姿划船','高位下拉','T杠划船','硬拉','山羊挺身'],
+  '腿部':['杠铃深蹲','哑铃深蹲','前深蹲','腿举','腿屈伸','腿弯举','保加利亚分腿蹲','弓步蹲','提踵'],
+  '肩部':['杠铃推举','哑铃推举','侧平举','前平举','面拉','反向飞鸟','阿诺德推举'],
+  '手臂':['杠铃弯举','哑铃弯举','锤式弯举','窄距卧推','绳索下压','臂屈伸','牧师凳弯举'],
+  '腹部':['卷腹','仰卧抬腿','平板支撑','俄罗斯转体','悬垂举腿','登山跑','侧支撑'],
+  '有氧':['跑步','骑行','跳绳','游泳','椭圆机','划船机','快走','爬楼梯','动感单车','HIIT']
+};
+
+// ========== 数据库 ==========
+const DB_KEY = 'fittrack_data';
+
+function getDB() {
+  const raw = localStorage.getItem(DB_KEY);
+  if (!raw) {
+    const def = { foods: [], exercises: [], records: {} };
+    localStorage.setItem(DB_KEY, JSON.stringify(def));
+    return def;
+  }
+  return JSON.parse(raw);
+}
+
+function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+function getToday() {
+  const n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+
+function getTime() {
+  const n=new Date(); return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}
+
+function getTodayStr() {
+  const n=new Date();
+  const w=['日','一','二','三','四','五','六'];
+  return n.getFullYear()+'年'+String(n.getMonth()+1).padStart(2,'0')+'月'+String(n.getDate()).padStart(2,'0')+'日 星期'+w[n.getDay()];
+}
+
+function formatDateKey(s) {
+  const p=s.split('-'), d=new Date(+p[0],+p[1]-1,+p[2]);
+  const w=['日','一','二','三','四','五','六'];
+  return p[0]+'年'+(+p[1])+'月'+(+p[2])+'日 星期'+w[d.getDay()];
+}
+
+function showToast(m) {
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+// ========== 状态 ==========
+let selectedMeal='早餐', selectedFoods=[], selectedExercise=null, defaultGrams=100;
+let allFoods=[...DEFAULT_FOODS];
+let curExercises=JSON.parse(JSON.stringify(DEFAULT_EXERCISES));
+
+// ========== Tab ==========
+document.querySelectorAll('.tab-btn').forEach(b=>{
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.tab-btn').forEach(bb=>bb.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+    this.classList.add('active'); document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+    if(this.dataset.tab==='timeline') renderTimeline();
+  });
+});
+
+// ========== 餐别 ==========
+document.querySelectorAll('.meal-btn').forEach(b=>{
+  b.addEventListener('click',function(){
+    document.querySelectorAll('.meal-btn').forEach(bb=>bb.classList.remove('active'));
+    this.classList.add('active'); selectedMeal=this.dataset.meal;
+  });
+});
+
+// ========== 食物 ==========
+function loadFoods() {
+  const db=getDB();
+  allFoods=[...DEFAULT_FOODS, ...db.foods];
+  renderFoodList(allFoods);
+}
+
+function renderFoodList(foods) {
+  const list=document.getElementById('foodList');
+  if(!foods.length){list.innerHTML='<div style="padding:20px;text-align:center;color:#999;">未找到匹配的食物</div>';return;}
+  const sn=selectedFoods.map(s=>s.food.name);
+  list.innerHTML=foods.map(f=>{
+    const sel=sn.includes(f.name);
+    return '<div class="food-item'+(sel?' active':'')+'" data-name="'+f.name+'"><div class="food-item-checkbox">'+(sel?'✓':'')+'</div><div class="food-item-content"><div class="food-item-name">'+f.name+'</div><div class="food-item-info">🔥 '+f.cal+'千卡/100g | 💪 '+f.pro+'g蛋白质</div></div></div>';
+  }).join('');
+  list.querySelectorAll('.food-item').forEach(el=>{
+    el.addEventListener('click',function(){
+      const food=allFoods.find(f=>f.name===this.dataset.name); toggleFoodSelection(food);
+    });
+  });
+}
+
+function toggleFoodSelection(food) {
+  const idx=selectedFoods.findIndex(s=>s.food.name===food.name);
+  if(idx>=0) selectedFoods.splice(idx,1);
+  else selectedFoods.push({food,grams:defaultGrams});
+  const q=document.getElementById('foodSearch').value.toLowerCase().trim();
+  renderFoodList(q?allFoods.filter(f=>f.name.toLowerCase().includes(q)):allFoods);
+  renderSelectedFoods(); updateMealPreview();
+}
+
+function renderSelectedFoods() {
+  const c=document.getElementById('selectedFoodsContainer'), cnt=document.getElementById('selectedCount');
+  if(!selectedFoods.length){c.style.display='none';return;}
+  c.style.display='block'; cnt.textContent=selectedFoods.length;
+  let html='',tc=0,tp=0;
+  selectedFoods.forEach((sf,i)=>{
+    const cal=Math.round(sf.food.cal*sf.grams/100), pro=Math.round(sf.food.pro*sf.grams/100*10)/10; tc+=cal; tp+=pro;
+    html+='<div class="selected-food-item"><div class="selected-food-info"><span class="selected-food-name">'+sf.food.name+'</span><div class="selected-food-amount"><button class="selected-food-dec" data-idx="'+i+'">−</button><input type="number" class="selected-food-grams" value="'+sf.grams+'" min="10" max="2000" step="10" data-idx="'+i+'"><button class="selected-food-inc" data-idx="'+i+'">+</button><span class="unit">g</span></div><span class="selected-food-nutri">🔥'+cal+' 💪'+pro+'g</span></div><button class="selected-food-remove" data-idx="'+i+'">✕</button></div>';
+  });
+  html+='<div class="selected-food-total"><span>合计：'+selectedFoods.length+'项食物</span><span>🔥 '+Math.round(tc)+'千卡 | 💪 '+Math.round(tp*10)/10+'g</span></div>';
+  c.querySelector('.selected-foods-list').innerHTML=html;
+  c.querySelectorAll('.selected-food-remove').forEach(b=>b.addEventListener('click',function(){const i=+this.dataset.idx;selectedFoods.splice(i,1);loadFoods();renderSelectedFoods();updateMealPreview();}));
+  c.querySelectorAll('.selected-food-dec').forEach(b=>b.addEventListener('click',function(){const i=+this.dataset.idx;selectedFoods[i].grams=Math.max(10,selectedFoods[i].grams-10);renderSelectedFoods();updateMealPreview();}));
+  c.querySelectorAll('.selected-food-inc').forEach(b=>b.addEventListener('click',function(){const i=+this.dataset.idx;selectedFoods[i].grams=Math.min(2000,selectedFoods[i].grams+10);renderSelectedFoods();updateMealPreview();}));
+  c.querySelectorAll('.selected-food-grams').forEach(inp=>inp.addEventListener('change',function(){const i=+this.dataset.idx;let v=+this.value||100;if(v<10)v=10;if(v>2000)v=2000;selectedFoods[i].grams=v;renderSelectedFoods();updateMealPreview();}));
+}
+
+function updateMealPreview() {
+  const p=document.getElementById('foodPreview');
+  if(!selectedFoods.length){p.style.display='none';return;}
+  let tc=0,tp=0,ih='';
+  selectedFoods.forEach(sf=>{const cal=Math.round(sf.food.cal*sf.grams/100),pro=Math.round(sf.food.pro*sf.grams/100*10)/10;tc+=cal;tp+=pro;ih+='<div class="preview-item">'+sf.food.name+' '+sf.grams+'g → 🔥'+cal+' 💪'+pro+'g</div>';});
+  p.innerHTML='<div class="preview-name">'+selectedMeal+' · 共'+selectedFoods.length+'项</div><div class="preview-items">'+ih+'</div><div class="preview-nutrition"><span>🔥 '+Math.round(tc)+' 千卡</span><span>💪 '+Math.round(tp*10)/10+' g 蛋白质</span></div>';
+  p.style.display='block';
+}
+
+document.getElementById('foodSearch').addEventListener('input',function(){
+  const q=this.value.toLowerCase().trim();
+  renderFoodList(q?allFoods.filter(f=>f.name.toLowerCase().includes(q)):allFoods);
+});
+document.getElementById('foodGrams').addEventListener('input',function(){defaultGrams=+this.value||100;});
+document.getElementById('decGrams').addEventListener('click',function(){const i=document.getElementById('foodGrams');let v=parseInt(i.value)||100;i.value=Math.max(10,v-10);defaultGrams=+i.value;});
+document.getElementById('incGrams').addEventListener('click',function(){const i=document.getElementById('foodGrams');let v=parseInt(i.value)||100;i.value=Math.min(2000,v+10);defaultGrams=+i.value;});
+
+document.getElementById('addFoodBtn').addEventListener('click',async function(){
+  if(!selectedFoods.length){showToast('请先选择一种或多种食物');return;}
+  const db=getDB(), today=getToday(), time=getTime();
+  if(!db.records[today]) db.records[today]=[];
+  selectedFoods.forEach(sf=>{
+    const cal=Math.round(sf.food.cal*sf.grams/100), pro=Math.round(sf.food.pro*sf.grams/100*10)/10;
+    db.records[today].push({type:'food',time,foodName:sf.food.name,calories:cal,protein:pro,grams:sf.grams,mealType:selectedMeal});
+  });
+  saveDB(db);
+  showToast('✅ 已记录 '+selectedMeal+'：'+selectedFoods.length+'项食物');
+  selectedFoods=[]; loadFoods(); renderSelectedFoods(); updateMealPreview();
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector('[data-tab="timeline"]').classList.add('active');
+  document.getElementById('tab-timeline').classList.add('active');
+  renderTimeline();
+});
+
+// ========== 自定义食物 ==========
+document.getElementById('showCustomFoodBtn').addEventListener('click',()=>document.getElementById('customFoodModal').classList.add('show'));
+document.getElementById('closeCustomFoodModal').addEventListener('click',()=>document.getElementById('customFoodModal').classList.remove('show'));
+document.getElementById('customFoodModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+document.getElementById('saveCustomFood').addEventListener('click',function(){
+  const n=document.getElementById('customFoodName').value.trim(),c=document.getElementById('customFoodCalories').value,p=document.getElementById('customFoodProtein').value;
+  if(!n||!c||!p){showToast('请填写完整的食物信息');return;}
+  const db=getDB(); db.foods.push({name:n,cal:+c,pro:+p}); saveDB(db);
+  document.getElementById('customFoodName').value='';document.getElementById('customFoodCalories').value='';document.getElementById('customFoodProtein').value='';
+  document.getElementById('customFoodModal').classList.remove('show');
+  showToast('✅ 已添加食物：'+n); loadFoods();
+});
+
+// ========== 健身 ==========
+function renderExercises(filter){
+  const c=document.getElementById('exerciseCategories');c.innerHTML='';
+  Object.keys(curExercises).forEach(cat=>{
+    let exs=curExercises[cat]; if(filter) exs=exs.filter(e=>e.toLowerCase().includes(filter.toLowerCase()));
+    if(!exs.length) return;
+    const d=document.createElement('div');d.className='exercise-category';
+    d.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--primary-dark);margin-bottom:6px;">🏋️ '+cat+'</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">'+exs.map(e=>'<button class="exercise-btn'+(selectedExercise===e?' active':'')+'" data-exercise="'+e+'">'+e+'</button>').join('')+'</div>';
+    c.appendChild(d);
+  });
+  c.querySelectorAll('.exercise-btn').forEach(b=>b.addEventListener('click',function(){
+    c.querySelectorAll('.exercise-btn').forEach(bb=>bb.classList.remove('active'));
+    this.classList.add('active'); selectedExercise=this.dataset.exercise;
+    document.getElementById('selectedExerciseName').textContent='已选择：'+selectedExercise;
+    const g=document.getElementById('exerciseDetailGroup');g.style.display='flex';g.style.flexDirection='column';g.style.gap='12px';
+  }));
+}
+document.getElementById('exerciseSearch').addEventListener('input',function(){renderExercises(this.value.trim());});
+document.getElementById('exerciseSets').addEventListener('input',function(){let v=+this.value||1;if(v<1)v=1;if(v>50)v=50;this.value=v;});
+document.getElementById('decSets').addEventListener('click',function(){const i=document.getElementById('exerciseSets');let v=parseInt(i.value)||4;i.value=Math.max(1,v-1);});
+document.getElementById('incSets').addEventListener('click',function(){const i=document.getElementById('exerciseSets');let v=parseInt(i.value)||4;i.value=Math.min(50,v+1);});
+document.getElementById('exerciseReps').addEventListener('input',function(){let v=+this.value||1;if(v<1)v=1;if(v>200)v=200;this.value=v;});
+document.getElementById('decReps').addEventListener('click',function(){const i=document.getElementById('exerciseReps');let v=parseInt(i.value)||12;i.value=Math.max(1,v-1);});
+document.getElementById('incReps').addEventListener('click',function(){const i=document.getElementById('exerciseReps');let v=parseInt(i.value)||12;i.value=Math.min(200,v+1);});
+document.getElementById('exerciseDuration').addEventListener('input',function(){let v=+this.value||0;if(v<0)v=0;if(v>999)v=999;this.value=v;});
+document.getElementById('decDuration').addEventListener('click',function(){const i=document.getElementById('exerciseDuration');let v=parseInt(i.value)||0;i.value=Math.max(0,v-5);});
+document.getElementById('incDuration').addEventListener('click',function(){const i=document.getElementById('exerciseDuration');let v=parseInt(i.value)||0;i.value=Math.min(999,v+5);});
+document.getElementById('addExerciseBtn').addEventListener('click',async function(){
+  if(!selectedExercise){showToast('请先选择一个健身项目');return;}
+  const sets=+document.getElementById('exerciseSets').value||4,reps=+document.getElementById('exerciseReps').value||12,duration=+document.getElementById('exerciseDuration').value||0;
+  const db=getDB(),today=getToday(),time=getTime();
+  if(!db.records[today]) db.records[today]=[];
+  db.records[today].push({type:'exercise',time,exerciseName:selectedExercise,sets,reps,duration});
+  saveDB(db);
+  showToast('✅ 已记录健身：'+selectedExercise+' '+sets+'组×'+reps+'次');
+  document.querySelectorAll('.exercise-btn').forEach(b=>b.classList.remove('active'));selectedExercise=null;document.getElementById('exerciseDetailGroup').style.display='none';
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector('[data-tab="timeline"]').classList.add('active');
+  document.getElementById('tab-timeline').classList.add('active');renderTimeline();
+});
+
+// 自定义健身
+document.getElementById('showCustomExerciseBtn').addEventListener('click',()=>document.getElementById('customExerciseModal').classList.add('show'));
+document.getElementById('closeCustomExerciseModal').addEventListener('click',()=>document.getElementById('customExerciseModal').classList.remove('show'));
+document.getElementById('customExerciseModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+document.getElementById('saveCustomExercise').addEventListener('click',function(){
+  const n=document.getElementById('customExerciseName').value.trim(),cat=document.getElementById('customExerciseCategory').value;
+  if(!n){showToast('请输入健身项目名称');return;}
+  const db=getDB(); db.exercises.push({name:n,category:cat}); saveDB(db);
+  if(!curExercises[cat]) curExercises[cat]=[]; curExercises[cat].push(n);
+  document.getElementById('customExerciseName').value='';document.getElementById('customExerciseModal').classList.remove('show');
+  showToast('✅ 已添加项目：'+n);renderExercises(document.getElementById('exerciseSearch').value.trim());
+});
+
+// ========== 时间线 ==========
+async function renderTimeline(){
+  const tl=document.getElementById('timeline');
+  const db=getDB(),today=getToday();
+  const recs=db.records[today]||[];
+  let tc=0,tp=0;
+  recs.forEach(r=>{if(r.type==='food'){tc+=r.calories;tp+=r.protein;}});
+  document.getElementById('totalCalories').textContent=Math.round(tc);
+  document.getElementById('totalProtein').textContent=Math.round(tp*10)/10;
+  document.getElementById('dateDisplay').textContent='📅 '+getTodayStr();
+
+  const dates=Object.keys(db.records);
+  if(!dates.length){tl.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有记录</div><div class="empty-hint">点击上面的标签开始记录吧</div></div>';return;}
+  const mo=['早餐','午餐','晚餐','加餐'], mi={'早餐':'🌅','午餐':'☀️','晚餐':'🌙','加餐':'🍪'};
+  let html='';
+  for(const date of dates){
+    const records=db.records[date], foods=records.filter(r=>r.type==='food'), exs=records.filter(r=>r.type==='exercise');
+    let dc=0,dp=0; foods.forEach(r=>{dc+=r.calories;dp+=r.protein;});
+    html+='<div class="timeline-day"><div class="timeline-day-header"><span class="timeline-day-date">'+formatDateKey(date)+'</span>'+(foods.length?'<span class="timeline-day-stats">🔥 '+Math.round(dc)+'千卡 | 💪 '+Math.round(dp*10)/10+'g</span>':'')+'</div>';
+    if(foods.length){
+      const mg={}; foods.forEach(r=>{const m=r.mealType||'加餐';if(!mg[m])mg[m]=[];mg[m].push(r);});
+      mo.forEach(meal=>{
+        if(!mg[meal])return; const items=mg[meal];
+        const mc=items.reduce((s,r)=>s+r.calories,0),mp=items.reduce((s,r)=>s+r.protein,0);
+        html+='<div class="timeline-meal-group"><div class="timeline-meal-header"><span>'+(mi[meal]||'🍽️')+' '+meal+'</span><span class="timeline-meal-time">🕐 '+items[0].time+'</span><span class="timeline-meal-total">🔥'+Math.round(mc)+' 💪'+Math.round(mp*10)/10+'g</span></div>';
+        items.forEach((r,i)=>{
+          const gi=records.indexOf(r);
+          html+='<div style="display:flex;gap:10px;margin-bottom:4px;padding-left:0;"><div style="width:10px;height:10px;border-radius:50%;background:var(--primary-light);border:2px solid white;flex-shrink:0;margin-top:8px;"></div><div style="flex:1;padding:4px 0;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;font-weight:600;">🍽️ '+r.foodName+'</span><button style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:12px;padding:2px 4px;opacity:0.5;" onclick="deleteRecord(\''+date+'\','+gi+')">🗑️</button></div><div style="font-size:11px;color:var(--text-secondary);">'+r.grams+'g | 🔥 '+Math.round(r.calories)+'千卡 | 💪 '+r.protein+'g</div></div></div>';
+        });
+        html+='</div>';
+      });
+    }
+    if(exs.length){
+      html+='<div class="timeline-meal-group"><div class="timeline-meal-header"><span>💪 健身训练</span><span class="timeline-meal-total">'+exs.length+'项</span></div>';
+      exs.forEach(r=>{
+        const gi=records.indexOf(r);
+        html+='<div style="display:flex;gap:10px;margin-bottom:4px;"><div style="width:10px;height:10px;border-radius:50%;background:var(--warning);border:2px solid white;flex-shrink:0;margin-top:8px;"></div><div style="flex:1;padding:4px 0;"><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:13px;font-weight:600;">💪 '+r.exerciseName+'</span><button style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:12px;padding:2px 4px;opacity:0.5;" onclick="deleteRecord(\''+date+'\','+gi+')">🗑️</button></div><div style="font-size:11px;color:var(--text-secondary);">🕐 '+r.time+' | '+r.sets+'组 × '+r.reps+'次'+(r.duration?' | ⏱ '+r.duration+'分钟':'')+'</div></div></div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+  tl.innerHTML=html;
+}
+
+function deleteRecord(date,index){
+  const db=getDB();
+  if(db.records[date]&&index>=0&&index<db.records[date].length){
+    db.records[date].splice(index,1);
+    if(!db.records[date].length) delete db.records[date];
+    saveDB(db);
+    showToast('已删除记录');
+    renderTimeline();
+  }
+}
+
+// ========== Service Worker ==========
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+// ========== 初始化 ==========
+loadFoods(); renderExercises(''); renderTimeline();
+</script>
+</body>
+</html>
